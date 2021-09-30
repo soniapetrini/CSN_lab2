@@ -43,20 +43,39 @@ barplot(spectrum, main = "English",
 source("summary_table.R")
 ```
 
+```{r}
+write_summary <- function(language,file) {
+   degree_sequence = read.table(file, header = FALSE)
+    return(c(language,length(degree_sequence$V1),max(degree_sequence$V1),sum(degree_sequence$V1)/length(degree_sequence$V1),length(degree_sequence$V1)/sum(degree_sequence$V1)))
+}
+```
+
+
 
 # IN-DEGREE DISTRIBUTION
 
 Table 1: Summary of the properties of the degree sequences. N is the number of nodes, M/N is mean degree where M is the sum of degrees.
 
 ```{r}
+write_summary(source$language[1], source$file[1])
+```
+
+
+```{r}
 source = read.table("list_in.txt", header = TRUE, 
          as.is = c("language","file"))
 
+lang_tab = data.frame()
 for (x in 1:nrow(source)) {
-    write_summary(source$language[x], source$file[x])
+    out <- print(write_summary(source$language[x], source$file[x]))
+    lang_tab = rbind(df, out)
 }
+
 ```
 
+```{r}
+
+```
 
 
 
