@@ -1,0 +1,66 @@
+---
+title: "CSN_lab2"
+output: html_notebook
+---
+
+# Analysis of nodes degree distribution 
+
+After finding the parameters and the best model, plot the data and a theoretical curve to see if there is sufficient agreement 
+
+("I give x and y, use a double log scale for viz")
+
+```{r}
+library(ggplot2)
+```
+
+
+Degree sequence of the English network
+
+```{r}
+degree_sequence = read.table("./data/English_degree_sequence.txt",
+                  header = FALSE)
+nrow(degree_sequence)   # number of nodes 
+```
+```{r}
+sum(degree_sequence)    # sum of total degrees
+sum(degree_sequence)/dim(degree_sequence)[1]    # mean degree
+spectrum <- table(degree_sequence)
+```
+
+
+```{r}
+barplot(spectrum, main = "English",
+        xlab = "degree", ylab = "number of vertices")
+```
+
+```{r}
+barplot(spectrum, main = "English",
+        xlab = "degree", ylab = "number of vertices", log = "xy")
+```
+
+
+```{r}
+source("summary_table.R")
+```
+
+
+# IN-DEGREE DISTRIBUTION
+
+Table 1: Summary of the properties of the degree sequences. N is the number of nodes, M/N is mean degree where M is the sum of degrees.
+
+```{r}
+source = read.table("list_in.txt", header = TRUE, 
+         as.is = c("language","file"))
+
+for (x in 1:nrow(source)) {
+    write_summary(source$language[x], source$file[x])
+}
+```
+
+
+
+
+
+
+
+
