@@ -193,7 +193,6 @@ get_AIC <- function(m2logL,K,N) {
    m2logL + 2*K*N/(N-K-1) # AIC with a correction for sample size
 }
 
-
 ```
 
 
