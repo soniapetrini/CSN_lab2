@@ -104,12 +104,19 @@ degree_sequence = read.table("./data/English_degree_sequence.txt", header = FALS
 
 
 ```{r}
-x <- en_degree_sequence$V1
+degree_sequence = read.table("./samples_from_discrete_distributions/data/sample_of_geometric_with_parameter_0.2.txt",
+                             header = FALSE)
+x <- degree_sequence$V1
 M <- sum(x)
 N <- length(x)
 M_1 <- sum(log(x))
-
-
+H <- function(kmax,gamma) {
+    s <- 0
+    for (i in 1:kmax) {
+        s <- s + (1/(x[i]^gamma))
+    }
+    return(s)
+}
 
 ## zeta
 minus_log_like_zeta <- function(gamma) {
@@ -122,15 +129,28 @@ mle_zeta <- mle(minus_log_like_zeta,
             lower = c(1.0000001))
 
 
-## Poisson
-minus_log_like_poisson <- function(gamma) {
-     M * log(gamma) - N*(gamma + log(1-(e^-1))) - 
+## Geometric
+minus_log_like_geom <- function(q) {
+     - (M-N)*log(1-q) - N*log(q)
 }
 
-mle_poisson <- mle(minus_log_like_poisson,
+mle_geom <- mle(minus_log_like_geom,
+            start = list(q = N/M),
+            method = "L-BFGS-B",
+            lower = c(0.00001),
+            upper = c(0.99999))
+
+
+## Trunc Zeta
+minus_log_like_trunc_zeta <- function(gamma) {
+     gamma*M_1 + N*log(H(max(x),gamma))
+}
+
+mle_geom <- mle(minus_log_like_trunc_zeta,
             start = list(gamma = 2),
             method = "L-BFGS-B",
             lower = c(1.0000001))
+
 
 
 
