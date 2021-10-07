@@ -94,19 +94,18 @@ length(y) <- n
 #}
 
 en_degree_sequence = read.table("./data/English_in-degree_sequence.txt", header = FALSE)
-degree_sequence = read.table("./data/English_degree_sequence.txt", header = FALSE)
-degree_sequence = read.table("./data/English_degree_sequence.txt", header = FALSE)
-degree_sequence = read.table("./data/English_degree_sequence.txt", header = FALSE)
-degree_sequence = read.table("./data/English_degree_sequence.txt", header = FALSE)
+bsq_degree_sequence = read.table("./data/Basque_in-degree_sequence.txt", header = FALSE)
+degree_sequence = read.table("./data/English_in-degree_sequence.txt", header = FALSE)
+degree_sequence = read.table("./data/English_in-degree_sequence.txt", header = FALSE)
+degree_sequence = read.table("./data/English_in-degree_sequence.txt", header = FALSE)
 
 ```
 
 
+## Fitting Distributions
 
 ```{r}
-degree_sequence = read.table("./samples_from_discrete_distributions/data/sample_of_geometric_with_parameter_0.2.txt",
-                             header = FALSE)
-x <- degree_sequence$V1
+x <- bsq_degree_sequence$V1
 M <- sum(x)
 N <- length(x)
 M_1 <- sum(log(x))
@@ -118,15 +117,21 @@ H <- function(kmax,gamma) {
     return(s)
 }
 
-## zeta
-minus_log_like_zeta <- function(gamma) {
-     N * log(zeta(gamma)) + gamma * M_1
+## Poisson
+minus_log_like_poisson <- function(lambda) {
+  C <- 0;
+  for(i in 1:N)
+    for(j in 2:x[i])
+      C<-C+log(j)
+  return(- M * log(lambda) + N*(lambda + log(1-(exp(-lambda)))) + C)
 }
 
-mle_zeta <- mle(minus_log_like_zeta,
-            start = list(gamma = 2),
+mle_poisson <- mle(minus_log_like_poisson,
+            start = list(lambda = M/N),
             method = "L-BFGS-B",
-            lower = c(1.0000001))
+            lower = c(0.0000001))
+
+attributes(summary(mle_poisson))$coef[1]
 
 
 ## Geometric
@@ -140,34 +145,69 @@ mle_geom <- mle(minus_log_like_geom,
             lower = c(0.00001),
             upper = c(0.99999))
 
+attributes(summary(mle_geom))$coef[1]
+
+
+
+## zeta
+minus_log_like_zeta <- function(gamma) {
+     N * log(zeta(gamma)) + gamma * M_1
+}
+
+mle_zeta <- mle(minus_log_like_zeta,
+            start = list(gamma = 2),
+            method = "L-BFGS-B",
+            lower = c(1.0000001))
+
+attributes(summary(mle_zeta))$coef[1]
+
+
+
+## Zeta with 2
+minus_log_likelihood_zeta2 <- -2*M_1 + N * log((pi^2)/6)
+minus_log_likelihood_zeta2
+
+
 
 ## Trunc Zeta
 minus_log_like_trunc_zeta <- function(gamma) {
      gamma*M_1 + N*log(H(max(x),gamma))
 }
 
-mle_geom <- mle(minus_log_like_trunc_zeta,
+mle_trunc_zeta <- mle(minus_log_like_trunc_zeta,
             start = list(gamma = 2),
             method = "L-BFGS-B",
             lower = c(1.0000001))
-            
- minus_log_likelihood_zeta2 <- function(){
-  -2*M_1 + N * log((pi^2)/6)
+
+attributes(summary(mle_trunc_zeta))$coef[1]
+
+```
+
+
+# Model Selection
+
+```{r}
+m2logL <- attributes(summary(mle_zeta))$m2logL
+
+get_AIC <- function(m2logL,K,N) {
+   m2logL + 2*K*N/(N-K-1) # AIC with a correction for sample size
 }
-
-minus_log_like_poisson <- function(gamma) {
-  C <- 0;
-  for(i in 1:N)
-    for(j in 2:x[i])
-      C<-C+log(j)
-  return(M * log(gamma) - N*(gamma + log(1-(e^-1))) - C)
-}
-
-
-
 
 
 ```
+
+
+
+### compare with real distributions
+```{r}
+degree_sequence = read.table("./samples_from_discrete_distributions/data/sample_of_geometric_with_parameter_0.2.txt",
+                             header = FALSE)
+```
+
+
+
+
+
 
 
 
