@@ -150,6 +150,18 @@ mle_geom <- mle(minus_log_like_trunc_zeta,
             start = list(gamma = 2),
             method = "L-BFGS-B",
             lower = c(1.0000001))
+            
+ minus_log_likelihood_zeta2 <- function(){
+  -2*M_1 + N * log((pi^2)/6)
+}
+
+minus_log_like_poisson <- function(gamma) {
+  C <- 0;
+  for(i in 1:N)
+    for(j in 2:x[i])
+      C<-C+log(j)
+  return(M * log(gamma) - N*(gamma + log(1-(e^-1))) - C)
+}
 
 
 
