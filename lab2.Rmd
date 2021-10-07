@@ -10,7 +10,12 @@ After finding the parameters and the best model, plot the data and a theoretical
 ("I give x and y, use a double log scale for viz")
 
 ```{r}
+#install.packages("stats4,VGAN")
+
 library(ggplot2)
+require("stats4") # for MLE
+require("VGAM")
+
 ```
 
 
@@ -76,11 +81,61 @@ for (x in 1:nrow(source)) {
 ```
 
 ```{r}
+x <- 1:2
+y <- 1:10
+n <- max(length(x), length(y))
+length(x) <- n                      
+length(y) <- n
+
+#lang_tab = data.frame()
+#for (x in 1:nrow(source)) {
+#    degree_sequence = read.table(source$file[x])
+#    lang_tab = cbind(lang_tab, degree_sequence)
+#}
+
+en_degree_sequence = read.table("./data/English_in-degree_sequence.txt", header = FALSE)
+degree_sequence = read.table("./data/English_degree_sequence.txt", header = FALSE)
+degree_sequence = read.table("./data/English_degree_sequence.txt", header = FALSE)
+degree_sequence = read.table("./data/English_degree_sequence.txt", header = FALSE)
+degree_sequence = read.table("./data/English_degree_sequence.txt", header = FALSE)
 
 ```
 
 
 
+```{r}
+x <- en_degree_sequence$V1
+M <- sum(x)
+N <- length(x)
+M_1 <- sum(log(x))
+
+
+
+## zeta
+minus_log_like_zeta <- function(gamma) {
+     N * log(zeta(gamma)) + gamma * M_1
+}
+
+mle_zeta <- mle(minus_log_like_zeta,
+            start = list(gamma = 2),
+            method = "L-BFGS-B",
+            lower = c(1.0000001))
+
+
+## Poisson
+minus_log_like_poisson <- function(gamma) {
+     M * log(gamma) - N*(gamma + log(1-(e^-1))) - 
+}
+
+mle_poisson <- mle(minus_log_like_poisson,
+            start = list(gamma = 2),
+            method = "L-BFGS-B",
+            lower = c(1.0000001))
+
+
+
+
+```
 
 
 
