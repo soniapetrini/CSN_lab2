@@ -17,7 +17,7 @@ library(ggplot2)
 Degree sequence of the English network
 
 ```{r}
-degree_sequence = read.table("./data/English_degree_sequence.txt",
+#degree_sequence = read.table("./data/English_degree_sequence.txt",
                   header = FALSE)
 nrow(degree_sequence)   # number of nodes 
 ```
@@ -39,8 +39,10 @@ barplot(spectrum, main = "English",
 ```
 
 
+
 ```{r}
 source("summary_table.R")
+
 ```
 
 ```{r}
