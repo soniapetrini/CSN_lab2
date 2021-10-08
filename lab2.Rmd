@@ -42,7 +42,7 @@ Degree sequence of the English network
 ### TO FIX 
 
 ```{r}
-source("summary_table.R")
+#source("summary_table.R")
 ```
 
 ```{r}
@@ -80,21 +80,48 @@ for (x in 1:nrow(source)) {
 ### Opt parameters with MLE
 
 ```{r}
-source("loglike_fun.R")
 
 get_mle_params <- function(x) {
     # global variables
     M <- sum(x)
     N <- length(x)
     M_1 <- sum(log(x))
-    H <- function(x,gamma) {
-      s <- 0
-      for (i in 1:max(x)) {
-        s <- s + (1/(x[i]^gamma))
-        }
-      return(s)
+    kmax <- max(x)
+    H <- function(kmax,gamma) {
+    s <- 0
+    for (i in 1:kmax) {
+      s <- s + (1/(x[i]^gamma))
+      }
+    return(s)
     }
     
+    ## Poisson
+    minus_log_like_poisson <- function(lambda) {
+      C <- 0;
+      for(i in 1:N) {
+        for(j in 2:x[i]) {
+          C<-C+log(j)
+        }
+      }
+      return(- M * log(lambda) + N*(lambda + log(1-(exp(-lambda)))) + C)
+    }
+    
+    
+    ## Geometric
+    minus_log_like_geom <- function(q) {
+      - (M-N)*log(1-q) - N*log(q)
+    }
+    
+    ## zeta
+    minus_log_like_zeta <- function(gamma) {
+      N * log(zeta(gamma)) + gamma * M_1
+    }
+    
+    ## Trunc Zeta
+    minus_log_like_trunc_zeta <- function(gamma) {
+      gamma*M_1 + N*log(H(kmax,gamma))
+    }
+
     # ml estimation
     
     mle_geom <- mle(minus_log_like_geom,start = list(q = N/M),method = "L-BFGS-B",
@@ -109,11 +136,8 @@ get_mle_params <- function(x) {
     mle_trunc_zeta <- mle(minus_log_like_trunc_zeta,start = list(gamma = 2),method = "L-BFGS-B",
                           lower = c(1.0000001))
     
-
-    
-    
-    
     mle_ls <- c(mle_poisson,mle_geom,mle_zeta,mle_trunc_zeta)
+    
     
     # collect the best par for each distribution
     best_pars <- c()
@@ -123,10 +147,28 @@ get_mle_params <- function(x) {
       i <- i + 1
     }
     
-    return(best_pars)
+    
+    # collect -2logLike 
+    m2loglik_ls <- c()
+    i <- 1
+    for (n in mle_ls) {
+      m2loglik_ls[i] <- m2logL <- attributes(summary(n))$m2logL
+      i <- i + 1
+    }
+
+    
+    return(list(best_pars,m2loglik_ls))
+    
 }
 
 ```
+
+```{r}
+x <- unlist(degree_distrib_ls[[3]])
+new_pars <- get_mle_params(x)
+new_pars[[2]]
+```
+
 
 ### Lang-Par table
 ```{r}
@@ -135,39 +177,48 @@ params_table <- data.frame()
 for (n in 1:length(degree_distrib_ls)) {
     x <- unlist(degree_distrib_ls[[n]])
     new_pars <- get_mle_params(x)
-    params_table <- rbind(params_table,new_pars)
+    params_table <- rbind(params_table,new_pars[[1]])
 }
 
-#"lang"=source$language,"lambda"=c(),"q"=c(),"gamma_1"=c(),"gamma_2"=c()
+params_table$lang <- source$language
+colnames(params_table) <- c("lambda","q","gamma_1","gamma_2","lang")
 
 ```
 
-
 # Model Selection
 
+
 ```{r}
-
-## Zeta with 2
-minus_log_likelihood_zeta2 <- -2*M_1 + N * log((pi^2)/6)
-minus_log_likelihood_zeta2
-
-
-
-
-K <- 1
-
-m2logL <- attributes(summary(mle_zeta))$m2logL
-
 get_AIC <- function(m2logL,K,N) {
    m2logL + 2*K*N/(N-K-1) # AIC with a correction for sample size
 }
 
-get_AIC(m2logL,K,N)
 
+aic_table <- data.frame()
 
-
+for (n in 1:length(degree_distrib_ls)) {
+    x <- unlist(degree_distrib_ls[[n]])
+    new_pars <- get_mle_params(x)
+    
+    N <- length(x)
+    M <- sum(x)
+    M_1 <- sum(log(x))
+    minus_log_likelihood_zeta2 <- 2*M_1 - N * log((pi^2)/6)
+    
+    aic_poiss <- get_AIC(new_pars[[2]][1],1,N)
+    aic_geom <- get_AIC(new_pars[[2]][2],1,N)
+    aic_zeta <- get_AIC(new_pars[[2]][3],1,N)
+    aic_trunc_zeta <- get_AIC(new_pars[[2]][4],2,N)
+    aic_zeta_2 <- get_AIC(2*minus_log_likelihood_zeta2,0,N)
+    
+    aic_ls <- c(aic_poiss,aic_geom,aic_zeta,aic_trunc_zeta,aic_zeta_2)
+    aic_table <- rbind(aic_table,aic_ls)
+    aic_table$best <- which.min(aic_table[n,])
+}
+aic_table$lang <- source$language
+colnames(aic_table) <- c("Poisson","Geometric","Zeta","Trunc_Zeta","Zeta_2","best","lang")
+aic_table
 ```
-
 
 
 ### compare with real distributions
