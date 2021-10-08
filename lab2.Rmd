@@ -10,8 +10,6 @@ After finding the parameters and the best model, plot the data and a theoretical
 ("I give x and y, use a double log scale for viz")
 
 ```{r}
-#install.packages("stats4,VGAN")
-
 library(ggplot2)
 require("stats4") # for MLE
 require("VGAM")
@@ -23,37 +21,38 @@ Degree sequence of the English network
 
 ```{r}
 #degree_sequence = read.table("./data/English_degree_sequence.txt",
-                  header = FALSE)
-nrow(degree_sequence)   # number of nodes 
-```
-```{r}
-sum(degree_sequence)    # sum of total degrees
-sum(degree_sequence)/dim(degree_sequence)[1]    # mean degree
-spectrum <- table(degree_sequence)
-```
-
-
-```{r}
-barplot(spectrum, main = "English",
-        xlab = "degree", ylab = "number of vertices")
+#                  header = FALSE)
+#nrow(degree_sequence)   # number of nodes 
+#sum(degree_sequence)    # sum of total degrees
+#sum(degree_sequence)/dim(degree_sequence)[1]    # mean degree
+#spectrum <- table(degree_sequence)
 ```
 
 ```{r}
-barplot(spectrum, main = "English",
-        xlab = "degree", ylab = "number of vertices", log = "xy")
+#barplot(spectrum, main = "English",
+#        xlab = "degree", ylab = "number of vertices")
+```
+
+```{r}
+#barplot(spectrum, main = "English",
+#        xlab = "degree", ylab = "number of vertices", log = "xy")
 ```
 
 
+### TO FIX 
 
 ```{r}
 source("summary_table.R")
-
 ```
 
 ```{r}
 write_summary <- function(language,file) {
-   degree_sequence = read.table(file, header = FALSE)
-    return(c(language,length(degree_sequence$V1),max(degree_sequence$V1),sum(degree_sequence$V1)/length(degree_sequence$V1),length(degree_sequence$V1)/sum(degree_sequence$V1)))
+    degree_sequence = read.table(file, header = FALSE)
+    return(c(language,
+             length(degree_sequence$V1),
+             max(degree_sequence$V1),
+             sum(degree_sequence$V1)/length(degree_sequence$V1),
+             length(degree_sequence$V1)/sum(degree_sequence$V1)))
 }
 ```
 
@@ -63,123 +62,83 @@ write_summary <- function(language,file) {
 
 Table 1: Summary of the properties of the degree sequences. N is the number of nodes, M/N is mean degree where M is the sum of degrees.
 
-```{r}
-write_summary(source$language[1], source$file[1])
-```
-
+### Collect the node degree of every language
 
 ```{r}
 source = read.table("list_in.txt", header = TRUE, 
          as.is = c("language","file"))
 
-lang_tab = data.frame()
+degree_distrib_ls = c()
+
 for (x in 1:nrow(source)) {
-    out <- print(write_summary(source$language[x], source$file[x]))
-    lang_tab = rbind(df, out)
+    degree_distrib_ls[x] = read.table(source$file[x])
 }
-
 ```
-
-```{r}
-x <- 1:2
-y <- 1:10
-n <- max(length(x), length(y))
-length(x) <- n                      
-length(y) <- n
-
-#lang_tab = data.frame()
-#for (x in 1:nrow(source)) {
-#    degree_sequence = read.table(source$file[x])
-#    lang_tab = cbind(lang_tab, degree_sequence)
-#}
-
-en_degree_sequence = read.table("./data/English_in-degree_sequence.txt", header = FALSE)
-bsq_degree_sequence = read.table("./data/Basque_in-degree_sequence.txt", header = FALSE)
-degree_sequence = read.table("./data/English_in-degree_sequence.txt", header = FALSE)
-degree_sequence = read.table("./data/English_in-degree_sequence.txt", header = FALSE)
-degree_sequence = read.table("./data/English_in-degree_sequence.txt", header = FALSE)
-
-```
-
 
 ## Fitting Distributions
 
+### Opt parameters with MLE
+
 ```{r}
-x <- bsq_degree_sequence$V1
-M <- sum(x)
-N <- length(x)
-M_1 <- sum(log(x))
-H <- function(kmax,gamma) {
-    s <- 0
-    for (i in 1:kmax) {
+source("loglike_fun.R")
+
+get_mle_params <- function(x) {
+    # global variables
+    M <- sum(x)
+    N <- length(x)
+    M_1 <- sum(log(x))
+    H <- function(x,gamma) {
+      s <- 0
+      for (i in 1:max(x)) {
         s <- s + (1/(x[i]^gamma))
+        }
+      return(s)
     }
-    return(s)
+    
+    # ml estimation
+    
+    mle_geom <- mle(minus_log_like_geom,start = list(q = N/M),method = "L-BFGS-B",
+                    lower = c(0.00001),upper = c(0.99999))
+    
+    mle_zeta <- mle(minus_log_like_zeta,start = list(gamma = 2),method = "L-BFGS-B",
+                    lower = c(1.0000001))
+    
+    mle_poisson <- mle(minus_log_like_poisson,start = list(lambda = M/N),method = "L-BFGS-B",
+                       lower = c(0.0000001))
+    
+    mle_trunc_zeta <- mle(minus_log_like_trunc_zeta,start = list(gamma = 2),method = "L-BFGS-B",
+                          lower = c(1.0000001))
+    
+
+    
+    
+    
+    mle_ls <- c(mle_poisson,mle_geom,mle_zeta,mle_trunc_zeta)
+    
+    # collect the best par for each distribution
+    best_pars <- c()
+    i <- 1
+    for (n in mle_ls) {
+      best_pars[i] <- attributes(summary(n))$coef[1]
+      i <- i + 1
+    }
+    
+    return(best_pars)
 }
 
-## Poisson
-minus_log_like_poisson <- function(lambda) {
-  C <- 0;
-  for(i in 1:N)
-    for(j in 2:x[i])
-      C<-C+log(j)
-  return(- M * log(lambda) + N*(lambda + log(1-(exp(-lambda)))) + C)
+```
+
+### Lang-Par table
+```{r}
+params_table <- data.frame()
+
+for (n in 1:length(degree_distrib_ls)) {
+    x <- unlist(degree_distrib_ls[[n]])
+    new_pars <- get_mle_params(x)
+    params_table <- rbind(params_table,new_pars)
 }
 
-mle_poisson <- mle(minus_log_like_poisson,
-            start = list(lambda = M/N),
-            method = "L-BFGS-B",
-            lower = c(0.0000001))
-
-attributes(summary(mle_poisson))$coef[1]
-
-
-## Geometric
-minus_log_like_geom <- function(q) {
-     - (M-N)*log(1-q) - N*log(q)
-}
-
-mle_geom <- mle(minus_log_like_geom,
-            start = list(q = N/M),
-            method = "L-BFGS-B",
-            lower = c(0.00001),
-            upper = c(0.99999))
-
-attributes(summary(mle_geom))$coef[1]
-
-
-
-## zeta
-minus_log_like_zeta <- function(gamma) {
-     N * log(zeta(gamma)) + gamma * M_1
-}
-
-mle_zeta <- mle(minus_log_like_zeta,
-            start = list(gamma = 2),
-            method = "L-BFGS-B",
-            lower = c(1.0000001))
-
-attributes(summary(mle_zeta))$coef[1]
-
-
-
-## Zeta with 2
-minus_log_likelihood_zeta2 <- -2*M_1 + N * log((pi^2)/6)
-minus_log_likelihood_zeta2
-
-
-
-## Trunc Zeta
-minus_log_like_trunc_zeta <- function(gamma) {
-     gamma*M_1 + N*log(H(max(x),gamma))
-}
-
-mle_trunc_zeta <- mle(minus_log_like_trunc_zeta,
-            start = list(gamma = 2),
-            method = "L-BFGS-B",
-            lower = c(1.0000001))
-
-attributes(summary(mle_trunc_zeta))$coef[1]
+#"lang"=source$language,"lambda"=c(),"q"=c(),"gamma_1"=c(),"gamma_2"=c()
 
 ```
 
@@ -187,11 +146,25 @@ attributes(summary(mle_trunc_zeta))$coef[1]
 # Model Selection
 
 ```{r}
+
+## Zeta with 2
+minus_log_likelihood_zeta2 <- -2*M_1 + N * log((pi^2)/6)
+minus_log_likelihood_zeta2
+
+
+
+
+K <- 1
+
 m2logL <- attributes(summary(mle_zeta))$m2logL
 
 get_AIC <- function(m2logL,K,N) {
    m2logL + 2*K*N/(N-K-1) # AIC with a correction for sample size
 }
+
+get_AIC(m2logL,K,N)
+
+
 
 ```
 
