@@ -73,9 +73,16 @@ degree_distrib_ls = c()
 for (x in 1:nrow(source)) {
     degree_distrib_ls[x] = read.table(source$file[x])
 }
+
+
 ```
 
 ## Fitting Distributions
+
+
+### Find starting parameter
+# For gammma_1 and gamma_2, we can fit a lin reg of log(f(k)) over log(k), we measure probability thorugh sequence 
+
 
 ### Opt parameters with MLE
 
@@ -86,7 +93,6 @@ get_mle_params <- function(x) {
     M <- sum(x)
     N <- length(x)
     M_1 <- sum(log(x))
-    kmax <- max(x)
     H <- function(kmax,gamma) {
     s <- 0
     for (i in 1:kmax) {
@@ -118,7 +124,7 @@ get_mle_params <- function(x) {
     }
     
     ## Trunc Zeta
-    minus_log_like_trunc_zeta <- function(gamma) {
+    minus_log_like_trunc_zeta <- function(kmax,gamma) {
       gamma*M_1 + N*log(H(kmax,gamma))
     }
 
@@ -133,8 +139,9 @@ get_mle_params <- function(x) {
     mle_poisson <- mle(minus_log_like_poisson,start = list(lambda = M/N),method = "L-BFGS-B",
                        lower = c(0.0000001))
     
-    mle_trunc_zeta <- mle(minus_log_like_trunc_zeta,start = list(gamma = 2),method = "L-BFGS-B",
-                          lower = c(1.0000001))
+    mle_trunc_zeta <- mle(minus_log_like_trunc_zeta,start = list(gamma = 2,kmax=max(x)),method = "L-BFGS-B",
+                          lower = c(1.0000001,max(x)-1000),
+                          upper=c(50,max(x)+1000))
     
     mle_ls <- c(mle_poisson,mle_geom,mle_zeta,mle_trunc_zeta)
     
@@ -163,12 +170,6 @@ get_mle_params <- function(x) {
 
 ```
 
-```{r}
-x <- unlist(degree_distrib_ls[[3]])
-new_pars <- get_mle_params(x)
-new_pars[[2]]
-```
-
 
 ### Lang-Par table
 ```{r}
@@ -181,12 +182,13 @@ for (n in 1:length(degree_distrib_ls)) {
 }
 
 params_table$lang <- source$language
-colnames(params_table) <- c("lambda","q","gamma_1","gamma_2","lang")
+colnames(params_table) <- c("lambda","q","gamma_1","gamma_2","kmax","lang")
 
 ```
 
 # Model Selection
 
+## Compute AICs
 
 ```{r}
 get_AIC <- function(m2logL,K,N) {
@@ -219,6 +221,13 @@ aic_table$lang <- source$language
 colnames(aic_table) <- c("Poisson","Geometric","Zeta","Trunc_Zeta","Zeta_2","best","lang")
 aic_table
 ```
+## AICs Differences
+
+```{r}
+aic_diff_table <- data.frame("aic_min" = apply(aic_table[,c(1:5)],1,FUN=min))
+```
+
+
 
 
 ### compare with real distributions
