@@ -47,8 +47,8 @@ Degree sequence of the English network
 
 ```{r}
 write_summary <- function(language,file) {
-    degree_sequence = read.table(file, header = FALSE)
-    return(c(language,
+            degree_sequence = read.table(file, header = FALSE)
+            return(c(language,
              length(degree_sequence$V1),
              max(degree_sequence$V1),
              sum(degree_sequence$V1)/length(degree_sequence$V1),
@@ -94,12 +94,12 @@ get_mle_params <- function(x) {
     N <- length(x)
     M_1 <- sum(log(x))
     H <- function(kmax,gamma) {
-    s <- 0
-    for (i in 1:kmax) {
-      s <- s + (1/(x[i]^gamma))
+      s <- 0
+      for (i in 1:kmax) {
+        s <- s + (1/(i^gamma))
+        }
+      return(s)
       }
-    return(s)
-    }
     
     ## Poisson
     minus_log_like_poisson <- function(lambda) {
@@ -139,19 +139,27 @@ get_mle_params <- function(x) {
     mle_poisson <- mle(minus_log_like_poisson,start = list(lambda = M/N),method = "L-BFGS-B",
                        lower = c(0.0000001))
     
-    mle_trunc_zeta <- mle(minus_log_like_trunc_zeta,start = list(gamma = 2,kmax=max(x)),method = "L-BFGS-B",
-                          lower = c(1.0000001,max(x)-1000),
-                          upper=c(50,max(x)+1000))
+    mle_trunc_zeta <- mle(minus_log_like_trunc_zeta,start = list(gamma = 3, kmax=max(x)),method = "L-BFGS-B",
+                       lower = list(kmax = 1), upper = list(kmax = N))
+    
     
     mle_ls <- c(mle_poisson,mle_geom,mle_zeta,mle_trunc_zeta)
+    
     
     
     # collect the best par for each distribution
     best_pars <- c()
     i <- 1
-    for (n in mle_ls) {
-      best_pars[i] <- attributes(summary(n))$coef[1]
-      i <- i + 1
+    for (n in 1:length(mle_ls)) {
+      if (n < length(mle_ls)) {
+          best_pars[i] <- attributes(summary(mle_ls[[n]]))$coef[1]
+          i <- i + 1
+          }
+      else {
+        best_pars[i] <- attributes(summary(mle_ls[[n]]))$coef[2]
+        best_pars[i+1] <- attributes(summary(mle_ls[[n]]))$coef[1]
+      }
+      
     }
     
     
@@ -184,7 +192,10 @@ for (n in 1:length(degree_distrib_ls)) {
 params_table$lang <- source$language
 colnames(params_table) <- c("lambda","q","gamma_1","gamma_2","kmax","lang")
 
+params_table
+
 ```
+
 
 # Model Selection
 
