@@ -216,7 +216,7 @@ for (n in 1:length(degree_distrib_ls)) {
     N <- length(x)
     M <- sum(x)
     M_1 <- sum(log(x))
-    minus_log_likelihood_zeta2 <- 2*M_1 - N * log((pi^2)/6)
+    minus_log_likelihood_zeta2 <- 2*M_1 + N * log((pi^2)/6)
     
     aic_poiss <- get_AIC(new_pars[[2]][1],1,N)
     aic_geom <- get_AIC(new_pars[[2]][2],1,N)
@@ -226,8 +226,9 @@ for (n in 1:length(degree_distrib_ls)) {
     
     aic_ls <- c(aic_poiss,aic_geom,aic_zeta,aic_trunc_zeta,aic_zeta_2)
     aic_table <- rbind(aic_table,aic_ls)
-    aic_table$best <- which.min(aic_table[n,])
+    aic_table$best[n] <- which.min(aic_table[n,1:5])
 }
+
 aic_table$lang <- source$language
 colnames(aic_table) <- c("Poisson","Geometric","Zeta","Trunc_Zeta","Zeta_2","best","lang")
 aic_table
