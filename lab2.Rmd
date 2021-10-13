@@ -11,17 +11,17 @@ After finding the parameters and the best model, plot the data and a theoretical
 
 ```{r}
 library(ggplot2)
+library(xtable)
 require("stats4") # for MLE
 require("VGAM")
-
 ```
 
 
 Degree sequence of the English network
 
 ```{r}
-#degree_sequence = read.table("./data/English_degree_sequence.txt",
-#                  header = FALSE)
+
+
 #nrow(degree_sequence)   # number of nodes 
 #sum(degree_sequence)    # sum of total degrees
 #sum(degree_sequence)/dim(degree_sequence)[1]    # mean degree
@@ -39,28 +39,7 @@ Degree sequence of the English network
 ```
 
 
-### TO FIX 
-
-```{r}
-#source("summary_table.R")
-```
-
-```{r}
-write_summary <- function(language,file) {
-            degree_sequence = read.table(file, header = FALSE)
-            return(c(language,
-             length(degree_sequence$V1),
-             max(degree_sequence$V1),
-             sum(degree_sequence$V1)/length(degree_sequence$V1),
-             length(degree_sequence$V1)/sum(degree_sequence$V1)))
-}
-```
-
-
-
 # IN-DEGREE DISTRIBUTION
-
-Table 1: Summary of the properties of the degree sequences. N is the number of nodes, M/N is mean degree where M is the sum of degrees.
 
 ### Collect the node degree of every language
 
@@ -77,8 +56,31 @@ for (x in 1:nrow(source)) {
 
 ```
 
-## Fitting Distributions
 
+### Summary Table
+
+```{r}
+summary_tab <- data.frame()
+i = 1
+for (l in 1:length(degree_distrib_ls)) {
+  summary_tab[i,1] <- source$language[i]
+  summary_tab[i,2] <- length(unlist(degree_distrib_ls[[l]]))
+  summary_tab[i,3] <- max(unlist(degree_distrib_ls[[l]]))
+  summary_tab[i,4] <- sum(unlist(degree_distrib_ls[[l]]))/length(unlist(degree_distrib_ls[[l]]))
+  summary_tab[i,5] <- length(unlist(degree_distrib_ls[[l]]))/sum(unlist(degree_distrib_ls[[l]]))
+  i = i + 1
+}
+
+colnames(summary_tab) <- c("lang","N","max k","M/N","N/M")
+print(xtable(summary_tab))
+```
+
+
+
+
+
+
+## Fitting Distributions
 
 ### Find starting parameter
 # For gammma_1 and gamma_2, we can fit a lin reg of log(f(k)) over log(k), we measure probability thorugh sequence 
@@ -193,7 +195,7 @@ params_table$lang <- source$language
 colnames(params_table) <- c("lambda","q","gamma_1","gamma_2","kmax","lang")
 
 params_table
-
+print(xtable(params_table))
 ```
 
 
@@ -232,12 +234,84 @@ for (n in 1:length(degree_distrib_ls)) {
 aic_table$lang <- source$language
 colnames(aic_table) <- c("Poisson","Geometric","Zeta","Trunc_Zeta","Zeta_2","best","lang")
 aic_table
+print(xtable(aic_table))
+
 ```
-## AICs Differences
+
+# Alternative distribution: Altman's function
 
 ```{r}
-aic_diff_table <- data.frame("aic_min" = apply(aic_table[,c(1:5)],1,FUN=min))
+get_mle_pars_altman <- function(x) {
+      M <- sum(x)
+      M_1 <- sum(log(x))
+          
+      # Loglikelihood
+      S <- function(gamma,delta) {
+            s <- 0
+            for (i in 1:N) {
+              s <- s + (i^(-gamma)*exp(-delta*i))
+              }
+            return(s) 
+      }
+      
+      minus_log_like_alt <- function(gamma,delta) {
+            gamma*M_1 + delta*M + log(S(gamma,delta))
+      }
+      
+      mle_alt <- mle(minus_log_like_alt, start = list(gamma = -2, delta = 4),method = "L-BFGS-B",
+                     upper = list(gamma = -0.01))
+      
+      return(list(attributes(summary(mle_alt))$coef[1],
+                  attributes(summary(mle_alt))$coef[2],
+                  attributes(summary(mle_alt))$m2logL))
+}
+
+x <- unlist(degree_distrib_ls[[1]])
+alt_pars <- get_mle_pars_altman(x)
+get_AIC(alt_pars[[3]][1],2,N)
 ```
+
+
+```{r}
+aic_table <- data.frame()
+
+for (n in 1:length(degree_distrib_ls)) {
+    x <- unlist(degree_distrib_ls[[n]])
+    new_pars <- get_mle_params(x)
+    alt_pars <- get_mle_pars_altman(x)
+    
+    N <- length(x)
+    M <- sum(x)
+    M_1 <- sum(log(x))
+    minus_log_likelihood_zeta2 <- 2*M_1 + N * log((pi^2)/6)
+    
+    aic_poiss <- get_AIC(new_pars[[2]][1],1,N)
+    aic_geom <- get_AIC(new_pars[[2]][2],1,N)
+    aic_zeta <- get_AIC(new_pars[[2]][3],1,N)
+    aic_trunc_zeta <- get_AIC(new_pars[[2]][4],2,N)
+    aic_zeta_2 <- get_AIC(2*minus_log_likelihood_zeta2,0,N)
+    aic_alt <- get_AIC(alt_pars[[3]][1],2,N)
+    
+    aic_ls <- c(aic_poiss,aic_geom,aic_zeta,aic_trunc_zeta,aic_zeta_2,aic_alt)
+    aic_table <- rbind(aic_table,aic_ls)
+    aic_table$best[n] <- which.min(aic_table[n,1:6])
+}
+
+aic_table$lang <- source$language
+colnames(aic_table) <- c("Poisson","Geometric","Zeta","Trunc_Zeta","Zeta_2","Altman","best","lang")
+aic_table
+```
+
+```{r}
+spectrum <- table(degree_distrib_ls[[1]])
+barplot(spectrum, main = "English",
+        xlab = "degree", ylab = "number of vertices", log = "xy")
+```
+
+
+
+
+
 
 
 
